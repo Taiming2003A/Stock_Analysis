@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ ticker }} 回測結果</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { font-family: "Microsoft JhengHei", Arial; margin: 40px; }
+    h1 { color: #2c3e50; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background-color: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>{{ ticker }} 回測結果</h1>
+  <p>MA參數: {{ ma_short }} / {{ ma_long }}</p>
+  <p>總報酬率: {{ "%.2f"|format(result['Total_Return_Pct']) }}%</p>
+  <p>最終資金: {{ "%.2f"|format(result['Final_Value']) }}</p>
+
+  <div id="chart_price" style="height:600px;"></div>
+  <div id="chart_equity" style="height:300px;"></div>
+
+  <script>
+    // ========== 真實股價 K 線 + MA + 買賣點 ==========
+    var price_trace = {
+      x: {{ result['PriceData'].index.strftime("%Y-%m-%d").tolist()|tojson }},
+      open: {{ result['PriceData']['Open'].round(2).tolist()|tojson }},
+      high: {{ result['PriceData']['High'].round(2).tolist()|tojson }},
+      low: {{ result['PriceData']['Low'].round(2).tolist()|tojson }},
+      close: {{ result['PriceData']['Close'].round(2).tolist()|tojson }},
+      type: 'candlestick',
+      name: '股價K線'
+    };
+
+    var ma_short_trace = {
+      x: {{ result['PriceData'].index.strftime("%Y-%m-%d").tolist()|tojson }},
+      y: {{ result['PriceData']['MA_Short'].round(2).fillna(0).tolist()|tojson }},
+      mode: 'lines',
+      line: {color: 'orange', width: 1.5},
+      name: 'MA{{ ma_short }}'
+    };
+
+    var ma_long_trace = {
+      x: {{ result['PriceData'].index.strftime("%Y-%m-%d").tolist()|tojson }},
+      y: {{ result['PriceData']['MA_Long'].round(2).fillna(0).tolist()|tojson }},
+      mode: 'lines',
+      line: {color: 'blue', width: 1.5},
+      name: 'MA{{ ma_long }}'
+    };
+
+    var buy_signals = [];
+    var sell_signals = [];
+    {% for t in result['Transactions'] %}
+      {% if t['Type'] == 'Buy' %}
+        buy_signals.push({
+          x: ['{{ t["Date"] }}'],
+          y: [{{ t["Price"] }}],
+          mode: 'markers',
+          marker: {color: 'green', size: 10, symbol: 'triangle-up'},
+          name: 'Buy'
+        });
+      {% elif t['Type'] == 'Sell' %}
+        sell_signals.push({
+          x: ['{{ t["Date"] }}'],
+          y: [{{ t["Price"] }}],
+          mode: 'markers',
+          marker: {color: 'red', size: 10, symbol: 'triangle-down'},
+          name: 'Sell'
+        });
+      {% endif %}
+    {% endfor %}
+
+    var layout_price = {
+      title: '真實股價與交易點位',
+      xaxis: {title: '日期'},
+      yaxis: {title: '價格 ($)', fixedrange: false},
+      dragmode: 'zoom',
+      showlegend: true
+    };
+
+    var all_traces = [price_trace, ma_short_trace, ma_long_trace].concat(buy_signals).concat(sell_signals);
+    Plotly.newPlot('chart_price', all_traces, layout_price);
+
+    // ========== 累積報酬率折線 ==========
+    var equity_trace = {
+      x: {{ result['Equity'].index.strftime("%Y-%m-%d").tolist()|tojson }},
+      y: {{ (result['Equity']['Cumulative_Return'] * 100).round(2).tolist()|tojson }},
+      mode: 'lines',
+      line: {color: 'purple', width: 2},
+      name: '累積報酬率 (%)'
+    };
+    var layout_equity = {
+      title: '累積報酬率走勢',
+      xaxis: {title: '日期'},
+      yaxis: {title: '報酬率 (%)'}
+    };
+    Plotly.newPlot('chart_equity', [equity_trace], layout_equity);
+  </script>
+
+  <h2>交易紀錄</h2>
+  <table>
+    <tr><th>日期</th><th>動作</th><th>價格</th><th>原因</th><th>損益</th></tr>
+    {% for t in result['Transactions'] %}
+    <tr>
+      <td>{{ t['Date'] }}</td>
+      <td>{{ t['Type'] }}</td>
+      <td>{{ "%.2f"|format(t['Price']) }}</td>
+      <td>{{ t['Reason'] }}</td>
+      <td>{{ "%.2f"|format(t.get('Profit', 0)) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <p><a href="/">返回首頁</a></p>
+</body>
+</html>

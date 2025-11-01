@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MA最佳化回測</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>移動平均線 (MA) 最佳化回測系統</h1>
+  <form action="/analyze" method="post">
+    <label>股票代號:</label>
+    <input type="text" name="ticker" value="AAPL" required><br><br>
+    <label>模式:</label>
+    <select name="mode">
+      <option value="manual">手動設定MA</option>
+      <option value="auto">自動最佳化MA</option>
+    </select><br><br>
+    <label>短期MA:</label>
+    <input type="number" name="ma_short" value="20"><br>
+    <label>長期MA:</label>
+    <input type="number" name="ma_long" value="60"><br>
+    <label>止損(%):</label>
+    <input type="number" name="stop_loss" value="5"><br>
+    <label>止盈(%):</label>
+    <input type="number" name="take_profit" value="15"><br><br>
+    <button type="submit">執行回測</button>
+  </form>
+</body>
+</html>
